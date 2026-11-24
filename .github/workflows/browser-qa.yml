@@ -16,7 +16,6 @@ jobs:
       - run: npm ci
       - run: npm test && npm run build
       - run: npm install --prefix "$RUNNER_TEMP/browser" playwright@1.56.1
-      - run: "$RUNNER_TEMP/browser/node_modules/.bin/playwright install --with-deps chromium"
       - name: Test both viewports and capture screens
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 --directory dist >/tmp/site.log 2>&1 &

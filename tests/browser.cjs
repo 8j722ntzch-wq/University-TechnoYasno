@@ -85,7 +85,7 @@ async function run(browser, device, viewport) {
 }
 (async()=>{
   await fs.mkdir('screenshots',{recursive:true});
-  const browser=await chromium.launch();
+  const browser=await chromium.launch({channel:'chrome'});
   try{
     for(const [device,viewport] of Object.entries({desktop:{width:1440,height:900},mobile:{width:390,height:844}}))await run(browser,device,viewport);
   }finally{await browser.close()}
