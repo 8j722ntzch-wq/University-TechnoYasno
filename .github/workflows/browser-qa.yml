@@ -1,0 +1,51 @@
+name: Browser QA
+on:
+  workflow_dispatch:
+  push:
+    branches: [qa-materials]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npm test && npm run build
+      - run: npm install --prefix "$RUNNER_TEMP/browser" playwright@1.56.1
+      - run: "$RUNNER_TEMP/browser/node_modules/.bin/playwright install --with-deps chromium"
+      - name: Test both viewports and capture screens
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory dist >/tmp/site.log 2>&1 &
+          for i in {1..30}; do curl -fsS -o /dev/null http://127.0.0.1:4173/ && break; sleep 1; done
+          NODE_PATH="$RUNNER_TEMP/browser/node_modules" node tests/browser.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: TechnoYasno-screens
+          path: screenshots/*.png
+  save-screens:
+    if: github.ref == 'refs/heads/qa-materials'
+    needs: browser
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: qa-materials
+      - uses: actions/download-artifact@v4
+        with:
+          name: TechnoYasno-screens
+          path: screenshots
+      - name: Save verified screenshots
+        run: |
+          test "$(find screenshots -name '*.png' | wc -l)" -eq 18
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add screenshots
+          git diff --cached --quiet || git commit -m "Добавить 18 снимков экранов после браузерной проверки"
+          git push origin HEAD:qa-materials

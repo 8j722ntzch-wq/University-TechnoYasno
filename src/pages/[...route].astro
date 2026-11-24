@@ -1,0 +1,7 @@
+---
+import Store from '../components/Store.astro';
+import {pages} from '../lib/pages';
+import {products} from '../lib/data';
+export function getStaticPaths(){return [...Object.entries(pages).filter(([path])=>path!=='404').map(([path,title])=>({params:{route:path||undefined},props:{title}})),...products.map(p=>({params:{route:'product/'+p.slug},props:{title:p.name}}))]}
+---
+<Store path={Astro.params.route||''} title={Astro.props.title}/>
