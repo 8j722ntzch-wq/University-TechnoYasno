@@ -11,3 +11,11 @@
 .suggestions small{display:block;color:var(--muted)}
 .suggestions a:hover,.suggestions [aria-selected=true]{background:#e6effd}
 .search-controls{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px}
+
+@media(max-width:720px){
+  .bhero{display:grid;grid-template-columns:minmax(0,1fr) 78px;gap:8px;align-items:end}
+  .bhero div{display:contents}
+  .bhero h2,.bhero p{grid-column:1/-1;max-width:none}
+  .bhero img{position:static;width:78px;height:54px}
+  .bhero .btn{align-self:center}
+}

@@ -19,7 +19,15 @@ async function run(browser, device, viewport) {
       await Promise.all([...document.images].filter(img=>img.getBoundingClientRect().top<innerHeight).map(img=>img.decode()));
     });
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),name+' overflows viewport');
-    await page.screenshot({path:'screenshots/'+device+'-'+name+'.png',animations:'disabled'});
+    const options={animations:'disabled'};
+    let previous=await page.screenshot(options);
+    for(let i=0;i<12;i++){
+      await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+      const next=await page.screenshot(options);
+      if(next.equals(previous)){await fs.writeFile('screenshots/'+device+'-'+name+'.png',next);return}
+      previous=next;
+    }
+    throw Error('Экран не стабилизировался: '+name);
   }
   try{
     await go('/');

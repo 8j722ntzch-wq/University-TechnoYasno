@@ -3,7 +3,7 @@ declare global {interface Window {technoMedia?:Record<string,string>}}
 export const media=(n:string)=>(typeof window!=='undefined' && window.technoMedia?.[n])||'/media/'+n+'.webp';
 export const icon=(n:string)=>'<svg aria-hidden="true" class="icon"><use href="'+(typeof window!=='undefined'&&window.technoMedia?'':'/icons.svg')+'#'+n+'"></use></svg>';
 export const esc=(s:string)=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
-export const img=(n:string,alt='',priority=false)=>'<img src="'+media(n)+'" alt="'+esc(alt)+'" decoding="async" '+(priority?'fetchpriority="high"':'loading="lazy"')+'>';
+export const img=(n:string,alt='',priority=false)=>'<img src="'+media(n)+'" alt="'+esc(alt)+'" decoding="'+(priority?'sync':'async')+'" '+(priority?'fetchpriority="high"':'loading="lazy"')+'>';
 export const btn=(href:string,label:string,style='primary')=>'<a class="btn '+style+'" href="'+href+'">'+label+'</a>';
 export const crumbs=(title:string,parent?:[string,string])=>'<nav class="crumb" aria-label="Хлебные крошки"><a href="/">Главная</a>'+icon('chevron-right')+(parent?'<a href="'+parent[1]+'">'+parent[0]+'</a>'+icon('chevron-right'):'')+esc(title)+'</nav>';
 export const heading=(title:string,sub='')=>'<h1>'+title+'</h1>'+(sub?'<p class="lead">'+sub+'</p>':'');
