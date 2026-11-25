@@ -1,0 +1,83 @@
+name: Deploy TechnoYasno to hoster.by
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Preflight or production deployment"
+        type: choice
+        options: [preflight, deploy]
+        default: preflight
+      backup_confirmed:
+        description: "Manual backup verified in ispmanager (only needed if SFTP is jailed to the document root)"
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: technoyasno-production
+  cancel-in-progress: false
+jobs:
+  build-and-deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Verify static build
+        run: |
+          set -euo pipefail
+          test -s dist/index.html
+          test -s dist/404.html
+          test -d dist/_astro
+          test -n "$(find dist/_astro -type f -name '*.css' -print -quit)"
+          printf '{"commit":"%s"}\n' "$GITHUB_SHA" > dist/technoyasno-release.json
+          echo "Static build verified."
+      - name: Install SFTP client library
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq python3-paramiko
+      - name: SFTP preflight
+        env:
+          SFTP_HOST: ${{ secrets.SFTP_HOST }}
+          SFTP_PORT: ${{ secrets.SFTP_PORT }}
+          SFTP_USERNAME: ${{ secrets.SFTP_USERNAME }}
+          SFTP_REMOTE_DIR: ${{ secrets.SFTP_REMOTE_DIR }}
+          SFTP_KNOWN_HOSTS: ${{ secrets.SFTP_KNOWN_HOSTS }}
+          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+          SFTP_PRIVATE_KEY: ${{ secrets.SFTP_PRIVATE_KEY }}
+        run: /usr/bin/python3 scripts/deploy-sftp.py preflight
+      - name: Backup and publish production
+        if: vars.SFTP_DEPLOY_ENABLED == 'true' && (github.event_name == 'push' || inputs.mode == 'deploy')
+        env:
+          SFTP_HOST: ${{ secrets.SFTP_HOST }}
+          SFTP_PORT: ${{ secrets.SFTP_PORT }}
+          SFTP_USERNAME: ${{ secrets.SFTP_USERNAME }}
+          SFTP_REMOTE_DIR: ${{ secrets.SFTP_REMOTE_DIR }}
+          SFTP_KNOWN_HOSTS: ${{ secrets.SFTP_KNOWN_HOSTS }}
+          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+          SFTP_PRIVATE_KEY: ${{ secrets.SFTP_PRIVATE_KEY }}
+          MANUAL_BACKUP_CONFIRMED: ${{ github.event_name == 'workflow_dispatch' && inputs.backup_confirmed }}
+        run: /usr/bin/python3 scripts/deploy-sftp.py deploy
+      - name: Verify HTTPS release
+        if: vars.SFTP_DEPLOY_ENABLED == 'true' && (github.event_name == 'push' || inputs.mode == 'deploy')
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 --max-time 30 \
+            "https://markbuhayeu.com/technoyasno-release.json?sha=$GITHUB_SHA" > "$RUNNER_TEMP/release.json"
+          python3 -c 'import json,os; assert json.load(open(os.environ["RUNNER_TEMP"]+"/release.json"))["commit"] == os.environ["GITHUB_SHA"], "Published commit mismatch"'
+          curl --fail --silent --show-error --max-time 30 https://markbuhayeu.com/ > /dev/null
+          echo "HTTPS release verified."
+      - name: Preflight-only notice
+        if: vars.SFTP_DEPLOY_ENABLED != 'true' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'preflight')
+        run: echo "Preflight only. No website files were replaced."
