@@ -71,12 +71,12 @@ def open_connection(tmp):
 
 
 def target(sftp):
-    path = required("SFTP_REMOTE_DIR").strip()
+    path = os.environ.get("SFTP_REMOTE_DIR", "").strip() or "www/" + DOMAIN
     if any(part == ".." for part in path.split("/")):
         raise RuntimeError("Parent-directory traversal is prohibited")
+    home = sftp.normalize(".")
     root = sftp.normalize(path)
     directory(sftp, root)
-    home = sftp.normalize(".")
     # A chroot may hide the physical document root. Require a marker placed
     # in the intended site through the trusted hosting panel in that case.
     if not root.endswith("/www/" + DOMAIN):

@@ -8,7 +8,7 @@ on:
         description: "Preflight or production deployment"
         type: choice
         options: [preflight, deploy]
-        default: preflight
+        default: deploy
       backup_confirmed:
         description: "Manual backup verified in ispmanager (only needed if SFTP is jailed to the document root)"
         type: boolean
@@ -58,7 +58,7 @@ jobs:
           SFTP_PRIVATE_KEY: ${{ secrets.SFTP_PRIVATE_KEY }}
         run: /usr/bin/python3 scripts/deploy-sftp.py preflight
       - name: Backup and publish production
-        if: vars.SFTP_DEPLOY_ENABLED == 'true' && (github.event_name == 'push' || inputs.mode == 'deploy')
+        if: github.event_name == 'push' || inputs.mode == 'deploy'
         env:
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_PORT: ${{ secrets.SFTP_PORT }}
@@ -70,7 +70,7 @@ jobs:
           MANUAL_BACKUP_CONFIRMED: ${{ github.event_name == 'workflow_dispatch' && inputs.backup_confirmed }}
         run: /usr/bin/python3 scripts/deploy-sftp.py deploy
       - name: Verify HTTPS release
-        if: vars.SFTP_DEPLOY_ENABLED == 'true' && (github.event_name == 'push' || inputs.mode == 'deploy')
+        if: github.event_name == 'push' || inputs.mode == 'deploy'
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 --max-time 30 \
@@ -79,5 +79,5 @@ jobs:
           curl --fail --silent --show-error --max-time 30 https://markbuhayeu.com/ > /dev/null
           echo "HTTPS release verified."
       - name: Preflight-only notice
-        if: vars.SFTP_DEPLOY_ENABLED != 'true' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'preflight')
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'preflight'
         run: echo "Preflight only. No website files were replaced."
